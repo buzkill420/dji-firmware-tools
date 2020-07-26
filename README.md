@@ -30,10 +30,15 @@ Since all the tools are available in source code form, it is easy to check detai
 on the structure and protocols processed by these tools by looking at their source.
 The source code is intended to also act as a format documentation.
 
+For higher level and more hardware related info, check [the project Wiki](https://github.com/o-gs/dji-firmware-tools/wiki).
+
 # Tools
 
 Below the specific tools are described in short. Running them without parameters
 will give you details on supported commands in each of them.
+
+To get specifics about command line arguments of each tool, run them with `--help`
+option. Some tools also have additional remarks in their headers - try viewing them.
 
 ### dji_xv4_fwcon.py
 
@@ -48,7 +53,8 @@ Example: ```./dji_xv4_fwcon.py -vv -x -p P3X_FW_V01.08.0080.bin```
 
 DJI Firmware IMaH Un-signer and Decryptor tool; allows to decrypt and un-sign module
 from `.sig` file which starts with `IM*H`. Use this tool after untarring single
-modules from a firmware package, to decrypt its content.
+modules from a firmware package, to decrypt its content. The tool can also sign
+an un-signed module, as long as private part of the chosen key is available.
 
 Example: ```./dji_imah_fwsig.py -vv -u -i wm335_0306_v03.03.04.10_20180429.pro.fw.sig```
 
@@ -86,27 +92,48 @@ Example: ```./amba_romfs.py -vv -x -p P3X_FW_V01.08.0080_m0100_part_rom_fw.a9s``
 Linux script for mounting UBIFS partition from the Ambarella firmware. After
 mounting, the files can be copied or modified. Use this after the Ambarella
 firmware is extracted. The file containing UBIFS can be easily recognized
-by "UBI#" at the beginning of the file.
+by `UBI#` at the beginning of the file.
 
 Example: ```sudo ./amba_ubifs.sh P3X_FW_V01.08.0080_m0100_part_rfs.a9s```
 
 
 ### arm_bin2elf.py
 
-Tool which wrapps binary execytable ARM images with ELF header. If a firmware
+Tool which wrapps binary executable ARM images with ELF header. If a firmware
 contains binary image of executable file, this tool can rebuild ELF header for it.
 The ELF format can be then easily disassembled, as most debuggers can read ELF files.
 Note that using this tool on encrypted firmwares will not result in useable ELF.
 
 Example: ```./arm_bin2elf.py -vv -e -b 0x8020000 -l 0x6000000 -p P3X_FW_V01.07.0060_m0306.bin```
 
-After first look at the disassembly, it is good to find where the correct border
-between '.text' and '.data' sections is located. File offset of this location can
-be used to generate better ELF file in case '.ARM.exidx' section was not detected.
-This section is treated as a separator between '.text' and '.data'. This means that
-position of the '.ARM.exidx' influences length of the '.text' section, and starting
-offset of the '.data' section. If there is no '.ARM.exidx' section in the file, it
-will still be used as separator, just with zero size.
+The command above will cause the tool to try and detect where the border between
+code (`.text`) and data (`.data`) sections should be. This detection is not perfect,
+especially for binaries with no `.ARM.exidx` section between them. If `.ARM.exidx`
+exists in the binary, the tool can easily find it and divide binary data properly,
+treating `.ARM.exidx` as a separator between `.text` and `.data`.
+
+In other words, position of the `.ARM.exidx` influences length of the `.text` section,
+and starting offset of the `.data` section. If there is no `.ARM.exidx` section in
+the file, it will still be used as separator, just with zero size.
+After first look at the disassembly, it is good to check where the correct border
+between `.text` and `.data` sections is located. File offset of this location can
+be used to generate better ELF file.
+
+Additional updates to the ELF after first look can include defining `.bss` sections.
+These sections represent uninitialized RAM used by the binary. It is tempting to just
+define one big section which covers whole RAM address range according to programming
+guide of the chip, but that results in huge memory usage and related slowdowns while
+disassembling the file.
+
+Note that all section offsets are defined using start of the BIN file as reference,
+or in other words - they assume base address of 0x0. If you have found proper location
+of a section, remember to remove base address from the memory location before inserting
+to the command line of this tool.
+
+Base address can be often found in programming guide of the specific chip; sometimes it
+may be shifted from that location, if the binary is loaded by an additional bootloader.
+In such cases the bootloader takes the location from documentation, and the real firmware
+binary is loaded at a bit higher base address.
 
 Optimized examples for specific firmwares:
 
@@ -114,9 +141,28 @@ Optimized examples for specific firmwares:
 
 ```./arm_bin2elf.py -vv -e -b 0x000a000 --section .ARM.exidx@0x01ce50:0 --section .bss@0xfff6000:0x8000 --section .bss2@0x3fff6000:0x50000 --section .bss3@0xdfff6000:0x10000 -p C1_FW_V01.06.0000_m1400.bin```
 
+```./arm_bin2elf.py -vv -e -b 0x000a000 --section .ARM.exidx@0x0193E0:0 --section .bss@0x1ff6000:0x4000 --section .bss2@0x1ffe000:0x1000 --section .bss3@0x1bff6000:0x2400 --section .bss4@0x1c01a000:0x2400 --section .bss5@0x40022000:0x50000 --section .bss6@0x400ee000:0x200 --section .bss7@0xe0004000:0x1200 -p C1_FW_V01.06.0000_m1401.bin```
+
 ```./arm_bin2elf.py -vv -e -b 0x8008000 --section .ARM.exidx@0x0D510:0 --section .bss@0x17FF7700:0x5A00 --section .bss2@0x37ff8000:0x6700 --section .bss3@0x38008000:0x5500 --section .bss4@0x38018000:0x2200 --section .bss5@0x3a1f8000:0x100 --section .bss6@0x3a418000:0x500 -p P3X_FW_V01.08.0080_m0900.bin```
 
 ```./arm_bin2elf.py -vv -e -b 0x8008000 --section .ARM.exidx@0x0136D0:0 --section .bss@0x17FF7700:0xC900 --section .bss2@0x37ff8000:0x6700 --section .bss3@0x38008000:0x5500 --section .bss4@0x38018000:0x7000 --section .bss5@0x48058800:0x100 -p P3X_FW_V01.11.0030_m0400.bin```
+
+```./arm_bin2elf.py -vv -e -b 0x0420000 --section .ARM.exidx@0x00d0e00:0 --section .bss@0x1ffe0000:0x60100 --section .bss2@0x3fcc0000:0x2000 -p wm330_0306_v03.01.10.93_20160707.fw_0306.decrypted.bin```
+
+```./arm_bin2elf.py -vv -e -b 0x0420000 --section .ARM.exidx@0x01077d0:0 --section .bss@0x1ffe0000:0x60000 --section .bss2@0x3fcc0000:0x1000 --section .bss3@0xdfbe0000:0x10000 -p wm100_0306_v03.02.43.20_20170920.pro.fw_0306.decrypted.bin```
+
+```./arm_bin2elf.py -vvv -e -b 0x420000 --section .ARM.exidx@0x01265d8:0 --section .bss@0x1ffe0000:0x60100 --section .bss2@0x3fcc0000:0x2000 -p wm220_0306_v03.02.35.05_20170525.pro.fw_0306.decrypted.bin```
+
+This tool supports only conversion in direction of bin-to-elf. To convert an ELF
+file back to BIN (ie. after modifications), use `objcopy` utility for the
+specific architecture. The `objcopy` tool is a part of GNU Binary Utilities
+(`binutils`) and not a part of this repository.
+
+Examples:
+
+```arm-none-eabi-objcopy -O binary P3X_FW_V01.07.0060_m0100_part_sys.elf P3X_FW_V01.07.0060_m0100_part_sys.bin```
+
+```arm-none-eabi-objcopy -O binary P3X_FW_V01.07.0060_m0900.elf P3X_FW_V01.07.0060_m0900.bin```
 
 ### amba_sys2elf.py
 
@@ -155,6 +201,55 @@ Example of importing values from JSON file back to ELF:
 
 ```./amba_sys_hardcoder.py -vv -u --elffile P3X_FW_V01.08.0080_m0100_part_sys.elf```
 
+### dm3xx_encode_usb_hardcoder.py
+
+Dji DM3xx DaVinci encode_usb binary hard-coded values editor.
+
+The tool can parse encode_usb ELF file from Dji Firmware module for
+TI DM3xx DaVinci Media Processor.
+It finds certain hard-coded values in the binary data, and allows
+exporting or importing them.
+
+Example of exporting hard-coded values to JSON file:
+
+```./dm3xx_encode_usb_hardcoder.py -vv -x --elffile P3X_FW_V01.07.0060_m0800-encode_usb.elf```
+
+Example of importing values from JSON file back to ELF:
+
+```./dm3xx_encode_usb_hardcoder.py -vv -u --elffile P3X_FW_V01.07.0060_m0800-encode_usb.elf```
+
+### lightbridge_stm32_hardcoder.py
+
+Dji Lightbridge STM32 micro-controller binary hard-coded values editor.
+
+The tool can parse Lightbridge MCU firmware converted to ELF.
+It finds certain hard-coded values in the binary data, and allows
+exporting or importing them.
+
+Example of exporting hard-coded values to JSON file:
+
+```./lightbridge_stm32_hardcoder.py -vv -x --elffile P3X_FW_V01.07.0060_m0900.elf```
+
+Example of importing values from JSON file back to ELF:
+
+```./lightbridge_stm32_hardcoder.py -vv -u --elffile P3X_FW_V01.07.0060_m0900.elf```
+
+### dji_flyc_hardcoder.py
+
+Dji Flight Controller firmware binary hard-coded values editor.
+
+The tool can parse Flight Controller firmware converted to ELF.
+It finds certain hard-coded values in the binary data, and allows
+exporting or importing them.
+
+Example of exporting hard-coded values to JSON file:
+
+```./dji_flyc_hardcoder.py -vvv -x -e P3X_FW_V01.07.0060_m0306.elf```
+
+Example of importing values from JSON file back to ELF:
+
+```./dji_flyc_hardcoder.py -vvv -u -e P3X_FW_V01.07.0060_m0306.elf```
+
 ### dji_flyc_param_ed.py
 
 Flight Controller Firmware Parameters Array Editor finds an array of flight
@@ -186,7 +281,7 @@ More examples, for other products:
 
 DJI Universal Packet Container stream pareser with pcap output format.
 
-The script parses Raw DUPC stream (ie. flight log files ```FLY???.DAT```) and wraps
+The script parses Raw DUML stream (ie. flight log files ```FLY???.DAT```) and wraps
 single packets with PCap headers. Packets CRC is checked before the data is passed.
 Any tool with PCap format support can then be used to analyse the data (ie. Wireshark).
 
@@ -196,9 +291,9 @@ Example of converting flight log file:
 
 ### comm_serial2pcap.py
 
-DJI serial bus sniffer with DUPC packetizer and PCap output format.
+DJI serial bus sniffer with DUML packetizer and PCap output format.
 
-The script captures data from two UARTs and wraps single DUPC packets with PCap headers.
+The script captures data from two UARTs and wraps single DUML packets with PCap headers.
 Packets CRC is checked before the data is passed to the PCap file or FIFO pipe.
 Any tool with pcap format support can then be used to analyse the data (ie. Wireshark).
 
@@ -211,9 +306,9 @@ Example of starting the capture from two UART-to-TTL (aka FTDI) converters:
 
 ### comm_mkdupc.py
 
-DUPC Packet Builder with hex string output.
+DUML Packet Builder with hex string output.
 
-This tool can build a proper DUPC packet containing given header fields and payload.
+This tool can build a proper DUML packet containing given header fields and payload.
 The packet will be outputed in hexadecimal form. List of known commands and the look
 of expected payloads can be found in Wireshark dissectors described below.
 
@@ -223,11 +318,14 @@ Example of generating a packet to ask Spark camera module for its Sensor ID:
 
 ### comm_serialtalk.py
 
-DUPC Builder which sends packet to DJI product and receives a response.
+DUML Builder which sends packet to DJI product and receives a response.
 
-This tool builds a proper DUPC packet containing given header fields and payload.
+This tool builds a proper DUML packet containing given header fields and payload.
 Then it sends it via given serial port and waits for response. It shows the
 returning packet upon receiving it.
+
+It can be considered an alternative to `dji_mb_ctrl` binary which can be found
+in some drones. Parameter names are different between these two tools though.
 
 Example of asking Flight Controller for hardware and firmware version data (tested on Ph3):
 
@@ -286,3 +384,8 @@ to generate ELF files with content matching to the symbols.
 
 When working on a firmware version for which no symbols are available, you may
 want to use a version with symbols for reference in naming.
+
+If you are looking for a best FW version for reference symbols, or you do not care
+for FW versions at all and just want the most complete symbols - check size of MAP
+file. MAP file mostly contains manually-named symbols, so the largest one will be
+for firmware version on which more reversing work was done.

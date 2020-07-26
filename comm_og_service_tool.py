@@ -60,7 +60,7 @@ class PRODUCT_CODE(DecoratedEnum):
     MAT100 =  8 # Released 2015-06-08 Matrice 100
     P3C    =  9 # Released 2015-08-04 Phantom 3 Standard
     MG1    = 10 # Released 2015-11-27 Agras MG-1
-    P3XW   = 11 # Released 2016-01-05 Phantom 3 4K
+    WM325  = 11 # Released 2016-01-05 Phantom 3 4K
     WM330  = 12 # Released 2016-03-02 Phantom 4 (now referenced as Phantom 4 Standard)
     MAT600 = 13 # Released 2016-04-17 Matrice 600
     WM220  = 14 # Released 2016-09-28 Mavic Pro (also includes Released 2017-08-24 Mavic Pro Platinum)
@@ -72,6 +72,11 @@ class PRODUCT_CODE(DecoratedEnum):
     WM100  = 20 # Released 2017-05-24 Spark
     WM230  = 21 # Released 2018-01-23 Mavic Air
     WM335  = 22 # Released 2018-05-08 Phantom 4 Pro V2
+    WM240  = 23 # Released 2018-08-23 Mavic 2 Pro/Zoom
+    WM245  = 24 # Released 2018-10-29 Mavic 2 Enterprise
+    WM246  = 25 # Released 2018-12-20 Mavic 2 Enterprise Dual
+    WM160  = 26 # Released 2019-10-30 Mavic Mini
+    WM231  = 27 # Released 2020-04-28 Mavic Air 2
 
 ALT_PRODUCT_CODE = {
     'S800': 'A2', # Released 2012-07-25 Hexacopter frame, often sold with Dji A2 Flight Controller
@@ -80,10 +85,20 @@ ALT_PRODUCT_CODE = {
     'PH3PRO': 'P3X',
     'PH3ADV': 'P3S',
     'PH3STD': 'P3C',
+    'P3XW': 'WM325',
     'P4': 'WM330',
     'PH4': 'WM330',
+    'PH4PRO': 'WM331',
+    'PH4ADV': 'WM332',
     'SPARK': 'WM100',
     'MAVIC': 'WM220',
+    'MAVAIR': 'WM230',
+    'M2P': 'WM240',
+    'M2Z': 'WM240',
+    'M2E': 'WM245',
+    'M2ED': 'WM246',
+    'MMINI': 'WM160',
+    'MAVAIR2': 'WM231',
 }
 
 class SERVICE_CMD(DecoratedEnum):
@@ -484,7 +499,11 @@ def flyc_param_request_2017_write_param_value_by_index(po, ser, table_no, param_
     payload.table_no = table_no
     payload.unknown1 = 1
     payload.param_index = param_idx
-    payload.param_value = (c_ubyte * sizeof(payload.param_value)).from_buffer_copy(param_val)
+    
+    if len(param_val) > 1:
+        payload.param_value = (c_ubyte * sizeof(payload.param_value)).from_buffer_copy(param_val)
+    else:
+        payload.param_value = (c_ubyte).from_buffer_copy(param_val)
 
     if (po.verbose > 2):
         print("Prepared request - {:s}:".format(type(payload).__name__))
@@ -839,7 +858,7 @@ def do_flyc_param_request_2015_set(po, ser):
     flyc_param_request_2015_print_response(po, None, paraminfo, rplpayload)
 
 def do_flyc_param_request_2017_list(po, ser):
-    """ List flyc parameters on platforms multiple parameter tables.
+    """ List flyc parameters on platforms with multiple parameter tables.
 
         Tested on the following platforms and FW versions:
         WM100_FW_V01.00.0900 (2018-07-23)
@@ -872,7 +891,7 @@ def do_flyc_param_request_2017_list(po, ser):
             idx += 1
 
 def do_flyc_param_request_2017_get(po, ser):
-    """ Get flyc parameter value on platforms multiple parameter tables.
+    """ Get flyc parameter value on platforms with multiple parameter tables.
 
         Tested on the following platforms and FW versions:
         WM100_FW_V01.00.0900 (2018-07-23)
@@ -911,7 +930,7 @@ def flyc_param_request_2017_get_param_info_by_name_search(po, ser, param_name):
     return None # unreachble
 
 def do_flyc_param_request_2017_get_alt(po, ser):
-    """ Get flyc parameter value on platforms multiple parameter tables, alternative way.
+    """ Get flyc parameter value on platforms with multiple parameter tables, alternative way.
 
         Tested on the following platforms and FW versions:
         WM100_FW_V01.00.0900 (2018-07-26)
@@ -926,7 +945,7 @@ def do_flyc_param_request_2017_get_alt(po, ser):
     flyc_param_request_2017_print_response(po, None, paraminfo, rplpayload)
 
 def do_flyc_param_request_2017_set(po, ser):
-    """ Set new value of flyc parameter on platforms multiple parameter tables.
+    """ Set new value of flyc parameter on platforms with multiple parameter tables.
 
         Tested on the following platforms and FW versions:
         WM100_FW_V01.00.0900 (2018-07-23)
@@ -942,7 +961,7 @@ def do_flyc_param_request_2017_set(po, ser):
     flyc_param_request_2015_print_response(po, None, paraminfo, rplpayload)
 
 def do_flyc_param_request_2017_set_alt(po, ser):
-    """ Set new value of flyc parameter on platforms multiple parameter tables, alternative way.
+    """ Set new value of flyc parameter on platforms with multiple parameter tables, alternative way.
 
         Tested on the following platforms and FW versions:
         WM100_FW_V01.00.0900 (2018-07-27)
@@ -1108,6 +1127,8 @@ def do_gimbal_calib_request_spark_joint_coarse(po, ser):
 
         Tested on the following platforms and FW versions:
         WM100_FW_V01.00.0900 (2018-07-27)
+        WM230_FW_unknown (2019-03-31, report from bunchofbradys@github)
+        WM240_FW_V01.00.0200 (2020-02-28, report from Andris8888@slack)
     """
 
     print("\nInfo: The Gimbal will move through its boundary positions, then it will fine-tune its central position. It will take around 15 seconds.\n")
@@ -1175,6 +1196,11 @@ def gimbal_calib_request_p3x(po, ser):
 def do_gimbal_calib_request_p3x_autocal(po, ser):
     """ Initiates Phantom 3 Gimbal Automatic Calibration.
 
+        In Ph3, this only calibrates yaw axis, which uses magnetic sensors.
+        Pitch and roll have resistive sensors, and these are not affected;
+        if there is misalignment in them, that usually means damaged potentiometer
+        or bent aluminium arm, not something you can solve with calibration.
+
         Tested on the following platforms and FW versions:
         None
     """
@@ -1185,7 +1211,7 @@ def do_gimbal_calib_request_p3x_autocal(po, ser):
     rplpayload, pktreq = gimbal_calib_request_p3x(po, ser)
 
     print("Calibration process started; do not touch the drone for 15 seconds.")
-    sleep(5)
+    time.sleep(5)
     print("Monitoring the progress is only possibe from a mobile app, so exiting.")
 
 def do_gimbal_calib_request(po):
@@ -1447,7 +1473,7 @@ def do_camera_calib_request_p3x_encryptpair(po, ser):
         if rplpayload.status != 0:
             raise ValueError("Failure status {:d} returned from {:s} during Encrypt Pair {:s} request.".format(rplpayload.status,COMM_DEV_TYPE.GIMBAL.name,COMM_DEV_TYPE.GIMBAL.name))
 
-    if False: # Do NOT send EncryptConfig to gimbal - camera should have sent it
+    if False: # Do NOT send EncryptConfig to DaVinci - camera should have sent it
         rplpayload, pktreq = general_encrypt_configure_request_p3x(po, ser, COMM_DEV_TYPE.LB_DM3XX_SKY, COMM_DEV_TYPE.LB_DM3XX_SKY, chipstate.m08_boardsn, po.pairkey)
         if rplpayload.status != 0:
             raise ValueError("Failure status {:d} returned from {:s} during Encrypt Pair {:s} request.".format(rplpayload.status,COMM_DEV_TYPE.LB_DM3XX_SKY.name,COMM_DEV_TYPE.LB_DM3XX_SKY.name))
@@ -1608,6 +1634,6 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as ex:
-        print("Error: "+str(ex))
+        eprint("Error: "+str(ex))
         #raise
         sys.exit(10)

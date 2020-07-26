@@ -109,7 +109,7 @@ end
 
 -- Makes a copy of the default settings per file
 local function new_settings()
-    debug("creating new file_settings")
+    print("debug: creating new file_settings")
     local file_settings = {}
     for k,v in pairs(default_settings) do
         file_settings[k] = v
@@ -399,7 +399,7 @@ end
 
 -- Go though packets and interpolate missing values
 local function process_packets(file_settings, packets, til_end)
-    debug("process_packets() called")
+    print("debug: process_packets() called")
 
     -- Timestamp precision increase
     -- Find groups with the same timestamp, and make it increasing miliseconds
@@ -541,7 +541,7 @@ local function process_packets(file_settings, packets, til_end)
         else
             file_settings.ground_altitude = 0.0
         end
-        info("Ground height at start point computed: " .. file_settings.ground_altitude)
+        print("info: Ground height at start point computed: " .. file_settings.ground_altitude)
     end
 
     -- Compute missing relative heights (in abssolute-only packets) and absolute heights (in relative-only packets)
@@ -722,7 +722,7 @@ local canwrite = {
 -- open a file for reading and write it out, at the same time, so we cerate another file_settings
 -- instance.
 local function create_writer_file_settings()
-    debug("create_writer_file_settings() called")
+    print("debug: create_writer_file_settings() called")
 
     local file_settings = new_settings()
 
@@ -734,12 +734,12 @@ end
 -- and needs to see if this file writer can handle the packet types in the window.
 -- We need to return true if we can handle it, else false
 local function can_write_encap(encap)
-    debug("can_write_encap() called with encap=" .. encap)
+    print("debug: can_write_encap() called with encap=" .. encap)
     return canwrite[encap] or false
 end
 
 local function write_open(fh, capture)
-    debug("write_open() called")
+    print("debug: write_open() called")
 
     local file_settings = create_writer_file_settings()
 
@@ -845,12 +845,12 @@ local function write_open(fh, capture)
     </Style>
 ]]
     if not hdr then
-        info("write_open: error generating file header")
+        print("info: write_open: error generating file header")
         return false
     end
 
     if not fh:write(hdr) then
-        info("write_open: error writing file header to file")
+        print("info: write_open: error writing file header to file")
         return false
     end
 
@@ -861,66 +861,66 @@ local function write_open(fh, capture)
 end
 
 -- declare some field extractors
-local dji_p3_rec_etype = Field.new("dji_p3.rec_etype")
+local dji_p3_rec_etype = Field.new("dji_p3_flyrec.etype")
 -- P3 flight record packet 0x000c
-local dji_p3_rec_osd_general_longtitude = Field.new("dji_p3.rec_osd_general_longtitude")
-local dji_p3_rec_osd_general_latitude = Field.new("dji_p3.rec_osd_general_latitude")
-local dji_p3_rec_osd_general_relative_height = Field.new("dji_p3.rec_osd_general_relative_height")
-local dji_p3_rec_osd_general_gps_nums = Field.new("dji_p3.rec_osd_general_gps_nums")
-local dji_p3_rec_osd_general_pitch = Field.new("dji_p3.rec_osd_general_pitch")
-local dji_p3_rec_osd_general_roll = Field.new("dji_p3.rec_osd_general_roll")
-local dji_p3_rec_osd_general_yaw = Field.new("dji_p3.rec_osd_general_yaw")
-local dji_p3_rec_osd_general_mode1 = Field.new("dji_p3.rec_osd_general_mode1")
+local dji_p3_rec_osd_general_longtitude = Field.new("dji_p3_flyrec.osd_general_longtitude")
+local dji_p3_rec_osd_general_latitude = Field.new("dji_p3_flyrec.osd_general_latitude")
+local dji_p3_rec_osd_general_relative_height = Field.new("dji_p3_flyrec.osd_general_relative_height")
+local dji_p3_rec_osd_general_gps_nums = Field.new("dji_p3_flyrec.osd_general_gps_nums")
+local dji_p3_rec_osd_general_pitch = Field.new("dji_p3_flyrec.osd_general_pitch")
+local dji_p3_rec_osd_general_roll = Field.new("dji_p3_flyrec.osd_general_roll")
+local dji_p3_rec_osd_general_yaw = Field.new("dji_p3_flyrec.osd_general_yaw")
+local dji_p3_rec_osd_general_mode1 = Field.new("dji_p3_flyrec.osd_general_mode1")
 
-local dji_p3_rec_osd_general_e_motor_on = Field.new("dji_p3.rec_osd_general_e_motor_on")
-local dji_p3_rec_osd_general_e_usonic_on = Field.new("dji_p3.rec_osd_general_e_usonic_on")
-local dji_p3_rec_osd_general_e_gohome_state = Field.new("dji_p3.rec_osd_general_e_gohome_state")
-local dji_p3_rec_osd_general_e_mvo_used = Field.new("dji_p3.rec_osd_general_e_mvo_used")
-local dji_p3_rec_osd_general_e_battery_req_gohome = Field.new("dji_p3.rec_osd_general_e_battery_req_gohome")
-local dji_p3_rec_osd_general_e_battery_req_land = Field.new("dji_p3.rec_osd_general_e_battery_req_land")
-local dji_p3_rec_osd_general_e_rc_state = Field.new("dji_p3.rec_osd_general_e_rc_state")
-local dji_p3_rec_osd_general_e_compass_over_range = Field.new("dji_p3.rec_osd_general_e_compass_over_range")
-local dji_p3_rec_osd_general_e_wave_err = Field.new("dji_p3.rec_osd_general_e_wave_err")
-local dji_p3_rec_osd_general_e_gps_level = Field.new("dji_p3.rec_osd_general_e_gps_level")
-local dji_p3_rec_osd_general_e_battery_type = Field.new("dji_p3.rec_osd_general_e_battery_type")
-local dji_p3_rec_osd_general_e_accel_over_range = Field.new("dji_p3.rec_osd_general_e_accel_over_range")
-local dji_p3_rec_osd_general_e_is_vibrating = Field.new("dji_p3.rec_osd_general_e_is_vibrating")
-local dji_p3_rec_osd_general_e_press_err = Field.new("dji_p3.rec_osd_general_e_press_err")
-local dji_p3_rec_osd_general_e_esc_stall = Field.new("dji_p3.rec_osd_general_e_esc_stall")
-local dji_p3_rec_osd_general_e_esc_empty = Field.new("dji_p3.rec_osd_general_e_esc_empty")
-local dji_p3_rec_osd_general_e_propeller_catapult = Field.new("dji_p3.rec_osd_general_e_propeller_catapult")
-local dji_p3_rec_osd_general_e_gohome_height_mod = Field.new("dji_p3.rec_osd_general_e_gohome_height_mod")
-local dji_p3_rec_osd_general_e_out_of_limit = Field.new("dji_p3.rec_osd_general_e_out_of_limit")
-local dji_p3_rec_osd_general_gohome_landing_reason = Field.new("dji_p3.rec_osd_general_gohome_landing_reason")
-local dji_p3_rec_osd_general_start_fail_reason = Field.new("dji_p3.rec_osd_general_start_fail_reason")
+local dji_p3_rec_osd_general_e_motor_on = Field.new("dji_p3_flyrec.osd_general_e_motor_on")
+local dji_p3_rec_osd_general_e_usonic_on = Field.new("dji_p3_flyrec.osd_general_e_usonic_on")
+local dji_p3_rec_osd_general_e_gohome_state = Field.new("dji_p3_flyrec.osd_general_e_gohome_state")
+local dji_p3_rec_osd_general_e_mvo_used = Field.new("dji_p3_flyrec.osd_general_e_mvo_used")
+local dji_p3_rec_osd_general_e_battery_req_gohome = Field.new("dji_p3_flyrec.osd_general_e_battery_req_gohome")
+local dji_p3_rec_osd_general_e_battery_req_land = Field.new("dji_p3_flyrec.osd_general_e_battery_req_land")
+local dji_p3_rec_osd_general_e_rc_state = Field.new("dji_p3_flyrec.osd_general_e_rc_state")
+local dji_p3_rec_osd_general_e_compass_over_range = Field.new("dji_p3_flyrec.osd_general_e_compass_over_range")
+local dji_p3_rec_osd_general_e_wave_err = Field.new("dji_p3_flyrec.osd_general_e_wave_err")
+local dji_p3_rec_osd_general_e_gps_level = Field.new("dji_p3_flyrec.osd_general_e_gps_level")
+local dji_p3_rec_osd_general_e_battery_type = Field.new("dji_p3_flyrec.osd_general_e_battery_type")
+local dji_p3_rec_osd_general_e_accel_over_range = Field.new("dji_p3_flyrec.osd_general_e_accel_over_range")
+local dji_p3_rec_osd_general_e_is_vibrating = Field.new("dji_p3_flyrec.osd_general_e_is_vibrating")
+local dji_p3_rec_osd_general_e_press_err = Field.new("dji_p3_flyrec.osd_general_e_press_err")
+local dji_p3_rec_osd_general_e_esc_stall = Field.new("dji_p3_flyrec.osd_general_e_esc_stall")
+local dji_p3_rec_osd_general_e_esc_empty = Field.new("dji_p3_flyrec.osd_general_e_esc_empty")
+local dji_p3_rec_osd_general_e_propeller_catapult = Field.new("dji_p3_flyrec.osd_general_e_propeller_catapult")
+local dji_p3_rec_osd_general_e_gohome_height_mod = Field.new("dji_p3_flyrec.osd_general_e_gohome_height_mod")
+local dji_p3_rec_osd_general_e_out_of_limit = Field.new("dji_p3_flyrec.osd_general_e_out_of_limit")
+local dji_p3_rec_osd_general_gohome_landing_reason = Field.new("dji_p3_flyrec.osd_general_gohome_landing_reason")
+local dji_p3_rec_osd_general_start_fail_reason = Field.new("dji_p3_flyrec.osd_general_start_fail_reason")
 -- P3 flight record packet 0x0000
-local dji_p3_rec_controller_g_real_input_channel_command_aileron = Field.new("dji_p3.rec_controller_g_real_input_channel_command_aileron")
-local dji_p3_rec_controller_g_real_input_channel_command_elevator = Field.new("dji_p3.rec_controller_g_real_input_channel_command_elevator")
-local dji_p3_rec_controller_g_real_input_channel_command_throttle = Field.new("dji_p3.rec_controller_g_real_input_channel_command_throttle")
-local dji_p3_rec_controller_g_real_input_channel_command_rudder = Field.new("dji_p3.rec_controller_g_real_input_channel_command_rudder")
-local dji_p3_rec_controller_g_real_input_channel_command_mode = Field.new("dji_p3.rec_controller_g_real_input_channel_command_mode")
-local dji_p3_rec_controller_g_real_status_control_real_mode = Field.new("dji_p3.rec_controller_g_real_status_control_real_mode")
-local dji_p3_rec_controller_g_real_status_ioc_control_command_mode = Field.new("dji_p3.rec_controller_g_real_status_ioc_control_command_mode")
-local dji_p3_rec_controller_g_real_status_rc_state = Field.new("dji_p3.rec_controller_g_real_status_rc_state")
-local dji_p3_rec_controller_g_real_status_motor_status = Field.new("dji_p3.rec_controller_g_real_status_motor_status")
-local dji_p3_rec_controller_g_real_status_main_batery_voltage = Field.new("dji_p3.rec_controller_g_real_status_main_batery_voltage")
+local dji_p3_rec_controller_g_real_input_channel_command_aileron = Field.new("dji_p3_flyrec.controller_g_real_input_channel_command_aileron")
+local dji_p3_rec_controller_g_real_input_channel_command_elevator = Field.new("dji_p3_flyrec.controller_g_real_input_channel_command_elevator")
+local dji_p3_rec_controller_g_real_input_channel_command_throttle = Field.new("dji_p3_flyrec.controller_g_real_input_channel_command_throttle")
+local dji_p3_rec_controller_g_real_input_channel_command_rudder = Field.new("dji_p3_flyrec.controller_g_real_input_channel_command_rudder")
+local dji_p3_rec_controller_g_real_input_channel_command_mode = Field.new("dji_p3_flyrec.controller_g_real_input_channel_command_mode")
+local dji_p3_rec_controller_g_real_status_control_real_mode = Field.new("dji_p3_flyrec.controller_g_real_status_control_real_mode")
+local dji_p3_rec_controller_g_real_status_ioc_control_command_mode = Field.new("dji_p3_flyrec.controller_g_real_status_ioc_control_command_mode")
+local dji_p3_rec_controller_g_real_status_rc_state = Field.new("dji_p3_flyrec.controller_g_real_status_rc_state")
+local dji_p3_rec_controller_g_real_status_motor_status = Field.new("dji_p3_flyrec.controller_g_real_status_motor_status")
+local dji_p3_rec_controller_g_real_status_main_batery_voltage = Field.new("dji_p3_flyrec.controller_g_real_status_main_batery_voltage")
 -- P3 flight record packet 0x0005
-local dji_p3_rec_gps_glns_gps_date = Field.new("dji_p3.rec_gps_glns_gps_date")
-local dji_p3_rec_gps_glns_gps_time = Field.new("dji_p3.rec_gps_glns_gps_time")
-local dji_p3_rec_gps_glns_gps_lon = Field.new("dji_p3.rec_gps_glns_gps_lon")
-local dji_p3_rec_gps_glns_gps_lat = Field.new("dji_p3.rec_gps_glns_gps_lat")
-local dji_p3_rec_gps_glns_hmsl = Field.new("dji_p3.rec_gps_glns_hmsl")
-local dji_p3_rec_gps_glns_hdop = Field.new("dji_p3.rec_gps_glns_hdop")
-local dji_p3_rec_gps_glns_pdop = Field.new("dji_p3.rec_gps_glns_pdop")
-local dji_p3_rec_gps_glns_numsv = Field.new("dji_p3.rec_gps_glns_numsv")
+local dji_p3_rec_gps_glns_gps_date = Field.new("dji_p3_flyrec.gps_glns_gps_date")
+local dji_p3_rec_gps_glns_gps_time = Field.new("dji_p3_flyrec.gps_glns_gps_time")
+local dji_p3_rec_gps_glns_gps_lon = Field.new("dji_p3_flyrec.gps_glns_gps_lon")
+local dji_p3_rec_gps_glns_gps_lat = Field.new("dji_p3_flyrec.gps_glns_gps_lat")
+local dji_p3_rec_gps_glns_hmsl = Field.new("dji_p3_flyrec.gps_glns_hmsl")
+local dji_p3_rec_gps_glns_hdop = Field.new("dji_p3_flyrec.gps_glns_hdop")
+local dji_p3_rec_gps_glns_pdop = Field.new("dji_p3_flyrec.gps_glns_pdop")
+local dji_p3_rec_gps_glns_numsv = Field.new("dji_p3_flyrec.gps_glns_numsv")
 
 local function write(fh, capture, pinfo)
-    debug("write() called")
+    print("debug: write() called")
 
     -- get file settings
     local file_settings = capture.private_table
     if not file_settings then
-        info("write() failed to get private table file settings")
+        print("info: write() failed to get private table file settings")
         return false
     end
 
@@ -1102,7 +1102,7 @@ end
 
 
 local function write_static_paths_folder(fh, file_settings)
-    debug("write_static_paths_folder() called")
+    print("debug: write_static_paths_folder() called")
     local blk = [[    <Folder>
       <name>Static paths</name>
       <visibility>1</visibility>
@@ -1115,13 +1115,13 @@ local function write_static_paths_folder(fh, file_settings)
 ]]
 
     if not fh:write(blk) then
-        info("write: error writing path block head to file")
+        print("info: write: error writing path block head to file")
         return false
     end
 
     -- Write folder LookAt block
     if not write_lookat(fh, "        ", file_settings, file_settings.lookat, -45.0, 30.0, "relativeToGround") then
-        info("write: error writing lookat block to file")
+        print("info: write: error writing lookat block to file")
         return false
     end
 
@@ -1134,7 +1134,7 @@ local function write_static_paths_folder(fh, file_settings)
           <coordinates>
 ]]
     if not fh:write(blk) then
-        info("write: error writing path block head to file")
+        print("info: write: error writing path block head to file")
         return false
     end
 
@@ -1153,7 +1153,7 @@ local function write_static_paths_folder(fh, file_settings)
                 -- For angular coords, 8 digits after dot is enough fo achieve 1.1mm accuracy
                 local blk_line = string.format("            %.8f,%.8f,%.3f\n", pkt.lon, pkt.lat, pkt.rel_alt)
                 if not fh:write(blk_line) then
-                    info("write: error writing path block line to file")
+                    print("info: write: error writing path block line to file")
                     return false
                 end
                 prev_pkt = pkt
@@ -1167,7 +1167,7 @@ local function write_static_paths_folder(fh, file_settings)
     </Folder>
 ]]
     if not fh:write(blk) then
-        info("write: error writing path block tail to file")
+        print("info: write: error writing path block tail to file")
         return false
     end
 end
@@ -1201,7 +1201,7 @@ local function write_dynamic_path_element(fh, model_info, tmstamp, pkt, curr_rot
     blk_line = blk_line .. "<gx:coord>" .. string.format("%.8f %.8f %.3f", coord.lon, coord.lat, coord.abs_alt + model_info.shift_up) .. "</gx:coord>"
     blk_line = blk_line .. "<gx:angles>" .. string.format("%.1f %.1f %.1f", math.deg(rot_qt2.yaw), math.deg(rot_qt2.pitch), math.deg(rot_qt2.roll)) .. "</gx:angles>\n"
     if not fh:write(blk_line) then
-        info("write: error writing path block line to file")
+        print("info: write: error writing path block line to file")
         return false
     end
     return true
@@ -1225,7 +1225,7 @@ local function is_model_condition_last_met(model_info, pos_pkt, rot_pkt, mot_pkt
 end
 
 local function write_dynamic_paths_placemark(fh, file_settings, model_info)
-    debug("write_dynamic_paths_placemark() called")
+    print("debug: write_dynamic_paths_placemark() called")
     local packets = file_settings.packets
 
     local full_fname = string.format("res/%s_det%d.dae",model_info.fname,file_settings.model_detail_lv)
@@ -1300,7 +1300,7 @@ local function write_dynamic_paths_placemark(fh, file_settings, model_info)
 
                     if not block_is_open then
                         if not fh:write(blk_head) then
-                            info("write: error writing path block head to file")
+                            print("info: write: error writing path block head to file")
                             return false
                         end
                         block_is_open = true
@@ -1310,7 +1310,7 @@ local function write_dynamic_paths_placemark(fh, file_settings, model_info)
 
                     if is_model_condition_last_met(model_info, pkt, curr_rot_pkt, curr_mot_pkt, visible_switch) and (block_is_open) then
                         if not fh:write(blk_tail) then
-                            info("write: error writing path block tail to file")
+                            print("info: write: error writing path block tail to file")
                             return false
                         end
                         block_is_open = false
@@ -1346,7 +1346,7 @@ local function write_dynamic_paths_placemark(fh, file_settings, model_info)
 
     if (block_is_open) then
         if not fh:write(blk_tail) then
-            info("write: error writing path block tail to file")
+            print("info: write: error writing path block tail to file")
             return false
         end
         block_is_open = false
@@ -1357,20 +1357,20 @@ local function write_dynamic_paths_placemark(fh, file_settings, model_info)
 end
 
 local function write_dynamic_paths_folder(fh, file_settings)
-    debug("write_dynamic_paths_folder() called")
+    print("debug: write_dynamic_paths_folder() called")
     local blk = [[    <Folder>
       <name>Dynamic paths</name>
       <visibility>1</visibility>
       <description>Flight path over time.</description>
 ]]
     if not fh:write(blk) then
-        info("write: error writing path block head to file")
+        print("info: write: error writing path block head to file")
         return false
     end
 
     -- Write folder LookAt block
     if not write_lookat(fh, "      ", file_settings, file_settings.lookat, -45.0, 60.0, "absolute") then
-        info("write: error writing lookat block to file")
+        print("info: write: error writing lookat block to file")
         return false
     end
 
@@ -1429,7 +1429,7 @@ local function write_dynamic_paths_folder(fh, file_settings)
     local blk = [[    </Folder>
 ]]
     if not fh:write(blk) then
-        info("write: error writing path block tail to file")
+        print("info: write: error writing path block tail to file")
         return false
     end
     return true
@@ -1450,7 +1450,7 @@ local function write_screen_overlay_left_stick(fh, beg_tmstamp, end_tmstamp, pkt
       </ScreenOverlay>
 ]]
     if not fh:write(blk) then
-        info("write: error writing screen overlays to file")
+        print("info: write: error writing screen overlays to file")
         return false
     end
     return true
@@ -1471,7 +1471,7 @@ local function write_screen_overlay_right_stick(fh, beg_tmstamp, end_tmstamp, pk
       </ScreenOverlay>
 ]]
     if not fh:write(blk) then
-        info("write: error writing screen overlays to file")
+        print("info: write: error writing screen overlays to file")
         return false
     end
     return true
@@ -1489,7 +1489,7 @@ local function write_screen_overlay_flyc_mode1(fh, beg_tmstamp, end_tmstamp, pkt
       </ScreenOverlay>
 ]]
     if not fh:write(blk) then
-        info("write: error writing screen overlays to file")
+        print("info: write: error writing screen overlays to file")
         return false
     end
     return true
@@ -1542,11 +1542,11 @@ local function overlay_int_switch_needs_refersh(file_settings, val, prev_val, tm
 end
 
 local function write_screen_overlays_folder(fh, file_settings)
-    debug("write_dynamic_paths_folder() called")
+    print("debug: write_dynamic_paths_folder() called")
     local packets = file_settings.packets
 
     if (packets[1] == nil) then
-        info("no packets, skipping")
+        print("info: no packets, skipping")
         return false
     end
     local blk = [[    <Folder>
@@ -1577,7 +1577,7 @@ local function write_screen_overlays_folder(fh, file_settings)
       </ScreenOverlay>
 ]]
     if not fh:write(blk) then
-        info("write: error writing screen overlays to file")
+        print("info: write: error writing screen overlays to file")
         return false
     end
 
@@ -1638,7 +1638,7 @@ local function write_screen_overlays_folder(fh, file_settings)
     local blk = [[    </Folder>
 ]]
     if not fh:write(blk) then
-        info("write: error writing screen overlays to file")
+        print("info: write: error writing screen overlays to file")
         return false
     end
     return true
@@ -1646,25 +1646,25 @@ end
 
 
 local function write_close(fh, capture)
-    debug("write_close() called")
+    print("debug: write_close() called")
 
     -- get file settings
     local file_settings = capture.private_table
     if not file_settings then
-        info("write() failed to get private table file settings")
+        print("info: write() failed to get private table file settings")
         return false
     end
 
     process_packets(file_settings, file_settings.packets, true)
 
     if not write_info(fh, "  ", file_settings) then
-        info("write: error writing info block to file")
+        print("info: write: error writing info block to file")
         return false
     end
 
     -- Write global LookAt block
     if not write_lookat(fh, "    ", file_settings, file_settings.lookat, -45.0, 45.0, "absolute") then
-        info("write: error writing lookat block to file")
+        print("info: write: error writing lookat block to file")
         return false
     end
 
@@ -1681,11 +1681,11 @@ local function write_close(fh, capture)
 </kml>
 ]]
     if not fh:write(footer) then
-        info("write: error writing file footer")
+        print("info: write: error writing file footer")
         return false
     end
 
-    debug("Good night, and good luck")
+    print("debug: Good night, and good luck")
     return true
 end
 
@@ -1695,7 +1695,7 @@ local function init_payload_dump(filename, ground_alt_val, pos_typ_val, min_dist
     local packet_count = 0
     os.setlocale("C") -- this is to avoid country-specific number conventions
     -- Osd General
-    local filter = "dji_p3.rec_etype == 0x0000 or dji_p3.rec_etype == 0x0005 or dji_p3.rec_etype == 0x000c"
+    local filter = "dji_p3_flyrec.etype == 0x0000 or dji_p3_flyrec.etype == 0x0005 or dji_p3_flyrec.etype == 0x000c"
     local tap = Listener.new(nil,filter)
     local fh = assert(io.open(filename, "w+"))
 
@@ -1727,7 +1727,7 @@ local function init_payload_dump(filename, ground_alt_val, pos_typ_val, min_dist
     -- cleanup
     fh:close()
     tap:remove()
-    info("Dumped packets: " .. packet_count )
+    print("info: Dumped packets: " .. packet_count )
 end
 
 -- show this dialog when the user select "Export" from the Tools menu
@@ -1743,4 +1743,4 @@ end
 
 register_menu("Export KML from DJI drone flight", begin_dialog_menu, MENU_TOOLS_UNSORTED)
 
-debug("Tools Menu Handler registered")
+print("debug: Tools Menu Handler registered")

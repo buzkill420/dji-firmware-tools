@@ -41,6 +41,7 @@ from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 from ctypes import *
+from collections import OrderedDict
 from time import gmtime, strftime, strptime
 from calendar import timegm
 from os.path import basename
@@ -154,7 +155,7 @@ class ImgPkgHeader(LittleEndianStructure):
                 ('size', c_uint),                   #8
                 ('reserved', c_ubyte * 4),          #12
                 ('header_size', c_uint),            #16
-                ('signature_size', c_uint),         #20
+                ('signature_size', c_uint),         #20 RSA signature size
                 ('payload_size', c_uint),           #24
                 ('target_size', c_uint),            #28
                 ('os', c_ubyte),                    #32
@@ -162,11 +163,11 @@ class ImgPkgHeader(LittleEndianStructure):
                 ('compression', c_ubyte),           #34
                 ('anti_version', c_ubyte),          #35
                 ('auth_alg', c_uint),               #36
-                ('auth_key', c_char * 4),           #40
-                ('enc_key', c_char * 4),            #44
-                ('scram_key', c_ubyte * 16),        #48
-                ('name', c_char * 32),              #64
-                ('type', c_uint),                   #96
+                ('auth_key', c_char * 4),           #40 Auth key identifier
+                ('enc_key', c_char * 4),            #44 Encryption key identifier
+                ('scram_key', c_ubyte * 16),        #48 Encrypted Scramble key; used in versions > 0
+                ('name', c_char * 32),              #64 Target Module name
+                ('type', c_char * 4),               #96 Target Module type identifier; used in versions > 1
                 ('version', c_uint),                #100
                 ('date', c_uint),                   #104
                 ('reserved2', c_ubyte * 20),        #108
@@ -174,7 +175,8 @@ class ImgPkgHeader(LittleEndianStructure):
                 ('entry', c_ubyte * 8),             #144
                 ('reserved3', c_ubyte * 4),         #152
                 ('chunk_num', c_uint),              #156
-                ('payload_digest', c_ubyte * 32)]   #160 end is 192
+                ('payload_digest', c_ubyte * 32),   #160 SHA256 of the payload
+               ]                                    #192 is the end
 
     def get_format_version(self):
         if self.magic != bytes("IM*H", "utf-8"):
@@ -183,6 +185,8 @@ class ImgPkgHeader(LittleEndianStructure):
             return 2016
         elif self.header_version == 0x0001:
             return 2017
+        elif self.header_version == 0x0002:
+            return 2018
         else:
             return 0
 
@@ -193,6 +197,9 @@ class ImgPkgHeader(LittleEndianStructure):
         elif ver == 2017:
             self.magic = bytes("IM*H", "utf-8")
             self.header_version = 0x0001
+        elif ver == 2018:
+            self.magic = bytes("IM*H", "utf-8")
+            self.header_version = 0x0002
         else:
             raise ValueError("Unsupported image format version.")
 
@@ -202,7 +209,7 @@ class ImgPkgHeader(LittleEndianStructure):
         self.size = self.target_size
 
     def dict_export(self):
-        d = dict()
+        d = OrderedDict()
         for (varkey, vartype) in self._fields_:
             if varkey.startswith('unk'):
                 continue
@@ -216,6 +223,8 @@ class ImgPkgHeader(LittleEndianStructure):
         varkey = 'auth_key'
         d[varkey] = d[varkey].decode("utf-8")
         varkey = 'enc_key'
+        d[varkey] = d[varkey].decode("utf-8")
+        varkey = 'type'
         d[varkey] = d[varkey].decode("utf-8")
         return d
 
@@ -246,7 +255,7 @@ class ImgPkgHeader(LittleEndianStructure):
         varkey = 'compression'
         fp.write("{:s}={:d}\n".format(varkey,d[varkey]))
         varkey = 'type'
-        fp.write("{:s}={:d}\n".format(varkey,d[varkey]))
+        fp.write("{:s}={:s}\n".format(varkey,d[varkey]))
         varkey = 'userdata'
         fp.write("{:s}={:s}\n".format(varkey,d[varkey].decode("utf-8"))) # not sure if string or binary
         varkey = 'entry'
@@ -257,7 +266,7 @@ class ImgPkgHeader(LittleEndianStructure):
     def __repr__(self):
         d = self.dict_export()
         from pprint import pformat
-        return pformat(d, indent=4, width=1)
+        return pformat(d, indent=0, width=160)
 
 class ImgChunkHeader(LittleEndianStructure):
     _pack_ = 1
@@ -269,7 +278,7 @@ class ImgChunkHeader(LittleEndianStructure):
                 ('reserved', c_ubyte * 8)]   #24 end is 32
 
     def dict_export(self):
-        d = dict()
+        d = OrderedDict()
         for (varkey, vartype) in self._fields_:
             if varkey.startswith('unk'):
                 continue
@@ -298,7 +307,7 @@ class ImgChunkHeader(LittleEndianStructure):
     def __repr__(self):
         d = self.dict_export()
         from pprint import pformat
-        return pformat(d, indent=4, width=1)
+        return pformat(d, indent=0, width=160)
 
 
 class ImgRSAPublicKey(LittleEndianStructure):
@@ -355,7 +364,7 @@ def imah_get_auth_params(po, pkghead):
         auth_key_struct = ImgRSAPublicKey()
         memmove(addressof(auth_key_struct), auth_key_data, sizeof(auth_key_struct))
         auth_key_n = combine_int_array(auth_key_struct.n, 32)
-        auth_key = RSA.construct( (auth_key_n, auth_key_struct.exponent, None, None, None, None, ) )
+        auth_key = RSA.construct( (auth_key_n, auth_key_struct.exponent, ) )
     else:
         eprint("{}: Warning: Unrecognized format of auth_key '{:s}'".format(po.sigfile,auth_k_str))
         return (None)
@@ -413,7 +422,7 @@ def imah_read_fwsig_head(po):
     pkghead.os = int(parser.get("asection", "os"))
     pkghead.arch = int(parser.get("asection", "arch"))
     pkghead.compression = int(parser.get("asection", "compression"))
-    pkghead.type = int(parser.get("asection", "type"))
+    pkghead.type = bytes(parser.get("asection", "type"), "utf-8")
     entry_bt = bytes.fromhex(parser.get("asection", "entry"))
     pkghead.entry = (c_ubyte * len(entry_bt)).from_buffer_copy(entry_bt)
 
@@ -462,7 +471,7 @@ def imah_read_fwsig_head(po):
             crypt_key_enc = cipher.encrypt(pkghead.scram_key)
             pkghead.scram_key = (c_ubyte * 16)(*list(crypt_key_enc))
 
-    return (pkghead, minames)
+    return (pkghead, minames, pkgformat)
 
 def imah_write_fwentry_head(po, i, e, miname):
     fname = "{:s}_{:s}.ini".format(po.mdprefix,miname)
@@ -501,6 +510,8 @@ def imah_unsign(po, fwsigfile):
         if (not po.force_continue):
             raise ValueError("Unexpected magic value in main header; input file is not a signed image.")
         eprint("{}: Warning: Unexpected magic value in main header; will try to extract anyway.".format(fwsigfile.name))
+    if pkgformat == 2018:
+        eprint("{}: Warning: The 2018 format is not fully supported.".format(fwsigfile.name))
 
     if pkghead.size != pkghead.target_size:
         eprint("{}: Warning: Header field 'size' is different that 'target_size'; the tool is not designed to handle this.".format(fwsigfile.name))
@@ -541,8 +552,13 @@ def imah_unsign(po, fwsigfile):
         raise EOFError("Could not read signature of signed image file head.")
 
     auth_key = imah_get_auth_params(po, pkghead)
-    header_signer = PKCS1_v1_5.new(auth_key)
-    if header_signer.verify(header_digest, head_signature):
+    try:
+        header_signer = PKCS1_v1_5.new(auth_key)
+        signature_match = header_signer.verify(header_digest, head_signature)
+    except Exception as ex:
+        print("{}: Warning: Image file head signature verification caused cryptographic exception: {}".format(fwsigfile.name,str(ex)))
+        signature_match = False
+    if signature_match:
         if (po.verbose > 1):
             print("{}: Image file head signature verification passed.".format(fwsigfile.name))
     else:
@@ -638,7 +654,9 @@ def imah_unsign(po, fwsigfile):
 
 def imah_sign(po, fwsigfile):
     # Read headers from INI files
-    (pkghead, minames) = imah_read_fwsig_head(po)
+    (pkghead, minames, pkgformat) = imah_read_fwsig_head(po)
+    if pkgformat == 2018:
+        eprint("{}: Warning: The 2018 format is not fully supported.".format(fwsigfile.name))
     chunks = []
     # Create header entry for each chunk
     for i, miname in enumerate(minames):
@@ -815,6 +833,6 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as ex:
-        print("Error: "+str(ex))
+        eprint("Error: "+str(ex))
         #raise
         sys.exit(10)
